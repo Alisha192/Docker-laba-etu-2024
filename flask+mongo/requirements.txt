@@ -1,0 +1,5 @@
+flask
+flask-migrate
+pymongo
+flask_pymongo
+gunicorn

@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  web:
+    build: .
+    container_name: pythonproject78_web
+    volumes:
+      - .:/app  # Монтируем текущую директорию в контейнер, чтобы изменения сохранялись
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+    command: flask run --host=0.0.0.0
+    user: flaskuser  # Запускаем от непривилегированного пользователя
+
+volumes:
+  sqlite_data:  # Это необязательно, так как SQLite может хранить данные в файле внутри контейнера
+    driver: local
