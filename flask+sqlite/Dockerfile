@@ -1,34 +1,44 @@
-# Используем легковесный базовый образ
-FROM python:3.11-alpine
+# Этап 1: Сборка зависимостей
+FROM python:3.11-alpine as builder
 
-# Устанавливаем зависимости
-RUN apk add --no-cache gcc musl-dev
+# Устанавливаем зависимости для сборки
+RUN apk add --no-cache gcc musl-dev libffi-dev
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем файлы проекта
+# Копируем файл зависимостей
+COPY requirements.txt .
+
+# Устанавливаем зависимости в изолированное место
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Этап 2: Финальный легковесный образ
+FROM python:3.11-alpine
+
+# Устанавливаем минимальные системные зависимости
+RUN apk add --no-cache libffi
+
+# Создаем непривилегированного пользователя
+RUN adduser -D flaskuser
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем установленные зависимости из этапа сборки
+COPY --from=builder /install /usr/local
+
+# Копируем весь проект в контейнер
 COPY . .
 
-# Создаем пользователя flaskuser и меняем владельца директории /app на flaskuser
-RUN adduser -D flaskuser && chown -R flaskuser:flaskuser /app
+# Меняем владельца рабочей директории
+RUN chown -R flaskuser:flaskuser /app
 
-# Устанавливаем зависимости из requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Даем права flaskuser на рабочую директорию
+# Устанавливаем пользователя по умолчанию
 USER flaskuser
-
-# Очищаем кеш
-RUN pip cache purge
-
-# Инициализация миграций
-RUN flask db init
-RUN flask db migrate
-RUN flask db upgrade
 
 # Экспонируем порт
 EXPOSE 5000
 
-# Запускаем приложение
-CMD ["flask", "run", "--host=0.0.0.0"]
+# Выполняем автоматические миграции при запуске
+CMD ["sh", "-c", "flask db upgrade && flask run --host=0.0.0.0"]
