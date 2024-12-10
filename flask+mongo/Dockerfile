@@ -1,24 +1,36 @@
-# Используем легковесный образ Python на базе Alpine
+# Этап 1: Сборка зависимостей
+FROM python:3.10-alpine as builder
+
+# Устанавливаем зависимости для сборки
+RUN apk add --no-cache --update build-base libffi-dev gcc
+
+# Устанавливаем рабочую директорию
+WORKDIR /app
+
+# Копируем только файл с зависимостями
+COPY requirements.txt .
+
+# Устанавливаем зависимости в изолированное место
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+
+# Этап 2: Финальный легковесный образ
 FROM python:3.10-alpine
 
-# Указываем переменную окружения для непривилегированного запуска
+# Указываем непривилегированного пользователя
 ENV USER=appuser
 
-# Добавляем системные зависимости
-RUN apk add --no-cache --update build-base libffi-dev gcc \
-    && pip install --upgrade pip \
+# Добавляем минимальные системные зависимости
+RUN apk add --no-cache libffi \
     && adduser --disabled-password --gecos "" $USER
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
 
-# Копируем только файлы для установки зависимостей
-COPY requirements.txt .
+# Копируем собранные зависимости из первого этапа
+COPY --from=builder /install /usr/local
 
-# Устанавливаем зависимости
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Устанавливаем права и копируем исходный код
+# Копируем исходный код
 COPY . .
 
 # Меняем владельца файлов
